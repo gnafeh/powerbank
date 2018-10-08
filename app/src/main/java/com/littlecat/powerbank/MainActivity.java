@@ -20,6 +20,7 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.PowerManager;
 import android.os.RemoteException;
+import android.os.SystemProperties;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.view.View;
@@ -92,6 +93,8 @@ public class MainActivity extends Activity{
     private long temp_sync_interval = -1;
     private long net_connect_audio_play_time = 0;
     DecimalFormat df=new DecimalFormat("0.00");
+    //hefang add 20181008
+    public boolean isFirstBootup = SystemProperties.get("persist.id.first.poweron").equals("1");
     private Handler mHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
@@ -937,7 +940,12 @@ public class MainActivity extends Activity{
 
             public void onFailure(int code, String message) {
                 mHandler.removeMessages(0);
-                mHandler.sendEmptyMessageDelayed(0, 60 * 1000);
+                //hefang add for first netConect slow 20181008
+                if(isFirstBootup) {
+                    mHandler.sendEmptyMessageDelayed(0, 1 * 1000);
+                }else{
+                    mHandler.sendEmptyMessageDelayed(0, 60 * 1000);
+                }
             }
         });
     }

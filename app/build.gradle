@@ -14,6 +14,14 @@ android {
             abiFilters "armeabi", "armeabi-v7a", "x86"
         }
     }
+    signingConfigs {
+        config {
+            storeFile file(KEY_PATH)
+                storePassword KEY_PASS
+                keyAlias ALIAS_NAME
+                keyPassword ALIAS_PASS
+        }
+    }
     sourceSets {
         main {
             jniLibs.srcDirs = ['libs']
@@ -21,11 +29,31 @@ android {
         }
     }
     buildTypes {
+        debug{
+            minifyEnabled false
+            debuggable true
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.config
         }
     }
+
+    //以下是为了找到android.os.SystemProperties这个隐藏的类
+    String SDK_DIR = System.getenv("ANDROID_SDK_HOME")
+    //("TAG", "SDK_DIR = " + SDK_DIR );
+    if(SDK_DIR == null) {
+        Properties props = new Properties()
+        props.load(new FileInputStream(project.rootProject.file("local.properties")))
+        SDK_DIR = props.get('sdk.dir');
+    }
+    dependencies {
+        compileOnly files("${SDK_DIR}/platforms/android-21/data/layoutlib.jar")
+    }
+    //以上是为了找到android.os.SystemProperties这个隐藏的类
+
+
 }
 
 dependencies {
@@ -35,8 +63,8 @@ dependencies {
     androidTestImplementation 'com.android.support.test:runner:1.0.1'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
     implementation 'com.android.support:support-v4:26.1.0'
-    compile 'com.squareup.okhttp3:okhttp:3.6.0'
-    compile 'com.squareup.okio:okio:1.11.0'
-    compile 'com.github.franmontiel:PersistentCookieJar:v1.0.1'
-    compile 'com.google.code.gson:gson:2.7'
+    implementation 'com.squareup.okhttp3:okhttp:3.6.0'
+    implementation 'com.squareup.okio:okio:1.11.0'
+    implementation 'com.github.franmontiel:PersistentCookieJar:v1.0.1'
+    implementation 'com.google.code.gson:gson:2.7'
 }
