@@ -12,6 +12,7 @@ import android.content.ServiceConnection;
 import android.media.AudioManager;
 import android.media.SoundPool;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -21,10 +22,13 @@ import android.os.Message;
 import android.os.PowerManager;
 import android.os.RemoteException;
 import android.os.SystemProperties;
+import android.provider.Settings;
+import android.support.annotation.RequiresApi;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.gson.Gson;
 import com.littlecat.powerbank.bean.BatteryBean;
@@ -63,7 +67,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Timer;
-import java.util.TimerTask;
 
 public class MainActivity extends Activity{
     byte uart_send_buf_10[] = {(byte) 0x55, (byte) 0xAA, 0x1A, 0x01, 0x00, 0x10,
@@ -95,6 +98,8 @@ public class MainActivity extends Activity{
     DecimalFormat df=new DecimalFormat("0.00");
     //hefang add 20181008
     public boolean isFirstBootup = SystemProperties.get("persist.id.first.poweron").equals("1");
+    public int current_app_ver , server_app_ver;
+    public boolean needDownloadAndUpgrade = SystemProperties.get("persist.ftj.need.upgrade").equals("1");//default is 0
     private Handler mHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
@@ -895,6 +900,7 @@ public class MainActivity extends Activity{
     }
 
     private void syncSetting() {
+        Log.d("hefang", "---=== syncSetting() ===--- ");
         mHandler.sendEmptyMessageDelayed(0, Constant.SYNC_SETTING_TIME);
         DeviceBean deviceBean = new DeviceBean();
         deviceBean.setDevice_ver("2");
@@ -906,6 +912,11 @@ public class MainActivity extends Activity{
         //machineBean.setMac("123456789010000");
         //machineBean.setMac("357807073033281");
 
+
+        current_app_ver = getCurrentVersion();
+        //server_app_ver=getServerVersion(settingBean.getApp_url());
+        Log.d("hefang", "syncSetting  current_app_ver: " +current_app_ver );
+
         String json = gson.toJson(machineBean);
         OkHttpUtils.postAync(Constant.URL + Constant.API_SYNC_SETTING, json, new HttpCallback() {
             public void onSuccess(ResultDesc resultDesc) {
@@ -914,7 +925,22 @@ public class MainActivity extends Activity{
                     String result = resultDesc.getResult();
                     if (null != result) {
                         settingBean = gson.fromJson(result, SettingBean.class);
-                        checkUpdateApk(settingBean.getApp_url());
+						//hefang add start
+                        server_app_ver = getServerVersion(settingBean.getApp_url());
+                        Log.d("hefang", "syncSetting  server_app_ver: " +server_app_ver);
+                        //Log.d("hefang", "syncSetting  settingBean.getApp_url(): " +settingBean.getApp_url());
+
+                        Log.d("hefang", "syncSetting  needDownloadAndUpgrade: " +needDownloadAndUpgrade );
+                        //check version and download or return
+                        needDownloadAndUpgrade = ((server_app_ver - current_app_ver > 0)? true:false);
+                        Log.d("hefang", "syncSetting  needDownloadAndUpgrade: " +needDownloadAndUpgrade );
+
+
+                        if(needDownloadAndUpgrade){
+                            SystemProperties.set("persist.ftj.need.upgrade", "1");
+                            checkUpdateApk(settingBean.getApp_url());
+                        }
+//hefang add end
                         if (!flag) {
                             initSocket();
                             localBroadcastManager.registerReceiver(mReciver, mIntentFilter);
@@ -950,9 +976,59 @@ public class MainActivity extends Activity{
         });
     }
 
+    //hefang add for install apk permission on android 8.1
+    private static final int REQUEST_CODE_INSTALL_PERMISSION = 107;
+
+
+
+    String filePath ="";
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        Log.d("hefang", "hefang---onActivityResult  requestCode: " + requestCode + ",resultCode: " + resultCode);
+        if (resultCode == RESULT_OK && requestCode == REQUEST_CODE_INSTALL_PERMISSION) {
+            Toast.makeText(this, filePath, Toast.LENGTH_SHORT).show();
+            Log.d("hefang", "checkUpdateApk installapk: 003" );
+            installApk(filePath);
+        }
+    }
+
+
+    /**
+     * 得到当前应用版本名称的方法
+     *
+     * @param context
+     *            :上下文
+     * @throws Exception
+     */
+    public int getCurrentVersion() {
+        int int_ver = (DeviceUtils.getLocalVersion(getApplicationContext()) + 10000);
+        return int_ver;
+    }
+    public int getServerVersion(String app_url) {
+        //hefang get server app version
+        int int_ver = 10000;
+        Log.d("hefang", "getServerVersion  app_url: " +app_url);
+        if (null != app_url && !"null".equals(app_url) && app_url.length() >=9) {
+        String str_server_apk_ver = app_url.substring(app_url.length() - 9, app_url.length() - 4);
+        try {
+            int_ver = Integer.parseInt(str_server_apk_ver);
+        } catch (NumberFormatException e) {
+            e.printStackTrace();
+        }
+    }
+        return int_ver;
+    }
+
+    //hefang add end
+
     private void checkUpdateApk(String app_url) {
+        Log.d("hefang", "---=== checkUpdateApk ===--- ");
+        Log.d("hefang", "checkUpdateApk  app_url: " +app_url);
         if (null != app_url && !"null".equals(app_url)) {
+            Log.d("hefang", "checkUpdateApk  download!!!!!!!!!!!!!!!! "  );
             OkHttpUtils.downloadAsynFile(app_url, SDcardUtils.getCachePath(SDcardUtils.apkCache), Constant.APK_NAME, new HttpCallback() {
+                @RequiresApi(api = Build.VERSION_CODES.O)
                 @Override
                 public void onSuccess(ResultDesc resultDesc) {
                     super.onSuccess(resultDesc);
@@ -967,7 +1043,10 @@ public class MainActivity extends Activity{
 //                        e.printStackTrace();
 //                    }
 
+                    if(needDownloadAndUpgrade) {
+                        Log.d("hefang", "checkUpdateApk  needDownloadAndUpgrade: " +needDownloadAndUpgrade );
                     installApk(SDcardUtils.getCachePath(SDcardUtils.apkCache) + "/" + Constant.APK_NAME);
+                    }
                 }
 
                 @Override

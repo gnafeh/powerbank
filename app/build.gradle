@@ -6,8 +6,8 @@ android {
         applicationId "com.littlecat.powerbank"
         minSdkVersion 19
         targetSdkVersion 22
-        versionCode 17
-        versionName "1.0"
+        versionCode 18
+        versionName "1.18"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         ndk {
             moduleName "serial_port"
