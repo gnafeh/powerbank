@@ -97,6 +97,7 @@ public class MainActivity extends Activity{
     private long net_connect_audio_play_time = 0;
     DecimalFormat df=new DecimalFormat("0.00");
     //hefang add 20181008
+    //
     public boolean isFirstBootup = SystemProperties.get("persist.id.first.poweron").equals("1");
     public int current_app_ver , server_app_ver;
     public boolean needDownloadAndUpgrade = SystemProperties.get("persist.ftj.need.upgrade").equals("1");//default is 0
