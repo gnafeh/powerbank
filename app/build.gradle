@@ -53,7 +53,11 @@ android {
     }
     //以上是为了找到android.os.SystemProperties这个隐藏的类
 
-
+    //Add the following configuration
+    lintOptions {
+        checkReleaseBuilds false
+        abortOnError false
+    }
 }
 
 dependencies {
