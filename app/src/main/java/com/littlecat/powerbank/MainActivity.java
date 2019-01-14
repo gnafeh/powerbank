@@ -322,6 +322,11 @@ public class MainActivity extends Activity{
         System.arraycopy(bat_info, 1, battery_id1, 0, 5);
         batteryId1 = Constant.byteArrayToInt5(battery_id1);
 
+        //hefang add for server to lock slot, just check getIs_locked() and set batteryID invalid 20181029
+        if(batteryInfo.getIs_locked() == 1){
+            batteryId1 = Constant.INVALIDATE_ID;
+        }
+
         if (batteryId1 != Constant.INVALIDATE_ID) {
             System.arraycopy(bat_info, 6, battery_voltage1, 0, 2);
             batteryVoltage1 = Constant.byteArrayToInt2(battery_voltage1);
@@ -1180,6 +1185,26 @@ public class MainActivity extends Activity{
         }
     };
 
+//hefang add for server to lock slot, just check getIs_locked() and set batteryID invalid 20181029
+    private void setSlotIndexAndLockState( int slot_id,boolean need_lock){
+        //Log.d("hefang", " ---=== getSlotIndexAndLockState ===--- " );
+        int i = 0;
+        BatteryInfo batteryInfo;
+        String slot_str;
+        //Log.d("hefang", " batteryCount: "  +batteryCount);
+        for (i = 1; i <= batteryCount; i++) {
+            slot_str = String.valueOf(i);
+            //Log.d("hefang", " slot_str: "  +slot_str + ", i: " + i);
+            if (batteryMap.containsKey(slot_str)) {
+                batteryInfo = (BatteryInfo) batteryMap.get(slot_str);
+                if(i==slot_id){
+                    batteryInfo.setIs_locked(need_lock ? 1 : 0);
+                    Toast.makeText(this, "i= "+i+", lock= " +batteryInfo.getIs_locked() , Toast.LENGTH_SHORT).show();
+                }
+                //Log.d("hefang", " getSlotIndexAndLockState: "+ batteryInfo.getIs_locked() );
+            }
+        }
+    }
     public void initSocket() {
         localBroadcastManager = LocalBroadcastManager.getInstance(this);
         mReciver = new MessageBackReciver() {
@@ -1212,14 +1237,22 @@ public class MainActivity extends Activity{
                         break;
                     case Constant.TCP_CMD_LOCK_SLOT:
                         slot_id = intent.getIntExtra(Constant.LOCK_SLOT, 1);
+						//hefang add for server to lock slot, just check getIs_locked() and set batteryID invalid 20181029
+                        setSlotIndexAndLockState(slot_id,true);
+                        /*
                         slotMap.put(String.valueOf(slot_id),false);
                         writeToLocal();
+                        */
                         break;
 
                     case Constant.TCP_CMD_UNLOCK_SLOT:
                         slot_id = intent.getIntExtra(Constant.LOCK_SLOT, 1);
+						//hefang add for server to lock slot, just check getIs_locked() and set batteryID invalid 20181029
+                        setSlotIndexAndLockState(slot_id,false);
+                        /*
                         slotMap.put(String.valueOf(slot_id),true);
                         writeToLocal();
+                        */
                         break;
                 }
             }
